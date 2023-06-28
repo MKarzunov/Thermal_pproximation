@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import least_squares, minimize
+from scipy.optimize import least_squares, minimize, basinhopping
 import matplotlib.pyplot as plt
 
 # MDT STD Resistance
@@ -102,7 +102,8 @@ def fun(theta):
 #
 # print('-' * 30)
 
-result = minimize(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], method='Nelder-Mead')
+minimizer_kwargs = {'method': 'Nelder-Mead'}
+result = basinhopping(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], minimizer_kwargs=minimizer_kwargs)
 print(result)
 
 theta_res = result.x
