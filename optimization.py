@@ -45,6 +45,7 @@ def resistance(theta, q, liquid=(1050.440, 3499, 1.633e-5, 2.675e-2)):
 
     q = q / 6e+4
     reinolds = (q * dh) / (cs_area * nu)
+    print(reinolds)
     nusselt = 0.21 * pow(reinolds, 0.61)
     r_conv = dh / (eta * nusselt * _lambda)
     r_cal = 1 / (2 * ro * q * cp)
@@ -74,7 +75,7 @@ def pressure_drop(theta, q, liquid=(1050.440, 3499, 1.633e-5, 2.675e-2)):
 
 
 def optimized_fun(coefs):
-    resistance_array = ((resistance(coefs, x) - y) / y) ** 4
+    resistance_array = (((resistance(coefs, x) - y) / y) ** 4) * 80
     pressure_array = ((pressure_drop(coefs, x_pressure) - y_pressure) / y_pressure) ** 4
     result_array = np.hstack((resistance_array, pressure_array))
     return np.sum(result_array)
@@ -101,6 +102,8 @@ def fun(theta):
 # plt.show()
 #
 # print('-' * 30)
+
+resistance([0.001, 1e-3, 1e-6, 1e-6], x)
 
 minimizer_kwargs = {'method': 'Nelder-Mead'}
 result = basinhopping(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], minimizer_kwargs=minimizer_kwargs)
