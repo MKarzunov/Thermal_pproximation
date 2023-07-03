@@ -21,6 +21,7 @@ y_pressure = np.array(
     [0.02310142405063291, 0.08928056962025316, 0.16484156645569617, 0.26924651898734175, 0.45573083860759483,
      0.6451825316455696, 1.01871207278481])
 
+
 # MDT XP Pressure Drop
 # y_pressure = np.array(
 #     [0.023662088607594934, 0.1018643987341772, 0.1955640981012658, 0.31717776898734173, 0.535710237341772,
@@ -42,12 +43,13 @@ def resistance(theta, q, liquid=(1050.440, 3499, 1.633e-5, 2.675e-2)):
     r_cond = theta[0]
     dh = theta[1]
     cs_area = theta[2]
+    a_wet = theta[3]
 
     q = q / 6e+4
     reinolds = (q * dh) / (cs_area * nu)
     print(reinolds)
     nusselt = 0.21 * pow(reinolds, 0.61)
-    r_conv = dh / (eta * nusselt * _lambda)
+    r_conv = dh / (eta * nusselt * _lambda * a_wet)
     r_cal = 1 / (2 * ro * q * cp)
     return r_cond + r_conv + r_cal
 
@@ -75,8 +77,8 @@ def pressure_drop(theta, q, liquid=(1050.440, 3499, 1.633e-5, 2.675e-2)):
 
 
 def optimized_fun(coefs):
-    resistance_array = (((resistance(coefs, x) - y) / y) ** 4) * 80
-    pressure_array = ((pressure_drop(coefs, x_pressure) - y_pressure) / y_pressure) ** 4
+    resistance_array = ((resistance(coefs, x) - y) / y) ** 2
+    pressure_array = ((pressure_drop(coefs, x_pressure) - y_pressure) / y_pressure) ** 2
     result_array = np.hstack((resistance_array, pressure_array))
     return np.sum(result_array)
 
@@ -103,25 +105,34 @@ def fun(theta):
 #
 # print('-' * 30)
 
-resistance([0.001, 1e-3, 1e-6, 1e-6], x)
+# resistance([0.001, 1e-3, 1e-6, 1e-6], x)
 
-minimizer_kwargs = {'method': 'Nelder-Mead'}
-result = basinhopping(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], minimizer_kwargs=minimizer_kwargs)
+minimizer_kwargs = {'method': 'Nelder-Mead', 'options': {'maxfev': 1600, 'maxiter': 1600},
+                    'bounds': [(0, 6e-3), (0, 0.015), (0, 2e-4), (0, 1e-1)]}
+result = basinhopping(optimized_fun, [0.005, 1e-3, 1e-6, 1e-6], minimizer_kwargs=minimizer_kwargs)
+
+# result = minimize(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], method='Nelder-Mead', options={'maxfev': 1600, 'maxiter': 1600})
 print(result)
 
 theta_res = result.x
+
+liquid = (1050.440, 3499, 1.633e-5, 2.675e-2)
 
 plt.figure(1)
 plt.plot(x, y, label='original')
 y_res = resistance(theta_res, x)
 plt.plot(x, y_res, label='optimised')
+pms_data = (980, 1632, 1e-5, 0.167)
+# y_pms = resistance(theta_res, x, pms_data)
+# plt.plot(x, y_pms, label='pms')
 plt.legend()
 
 plt.figure(2)
 plt.plot(x_pressure, y_pressure, label='original')
 y_res_pressure = pressure_drop(theta_res, x_pressure)
 plt.plot(x_pressure, y_res_pressure, label='optimised')
+# y_pms_pressure = pressure_drop(theta_res, x_pressure, pms_data)
+# plt.plot(x_pressure, y_pms_pressure, label='pms')
 plt.legend()
 
 plt.show()
-
