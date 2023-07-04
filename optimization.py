@@ -84,33 +84,37 @@ def optimized_fun(coefs):
     return np.sum(result_array)
 
 
-minimizer_kwargs = {'method': 'Nelder-Mead', 'options': {'maxfev': 1600, 'maxiter': 1600},
-                    'bounds': [(0, 6e-3), (0, 0.015), (0, 2e-4), (0, 1e-1)]}
-result = basinhopping(optimized_fun, [0.005, 3e-3, 3e-6, 3e-6], minimizer_kwargs=minimizer_kwargs)
+# minimizer_kwargs = {'method': 'Nelder-Mead', 'options': {'maxfev': 1600, 'maxiter': 1600},
+#                     'bounds': [(0, 6e-3), (0, 0.015), (0, 2e-4), (0, 1e-1)]}
+# result = basinhopping(optimized_fun, [4.000e-03, 1.473e-03, 9.188e-05, 1.000e-01], minimizer_kwargs=minimizer_kwargs)
 
 # result = minimize(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], method='Nelder-Mead', options={'maxfev': 1600, 'maxiter': 1600})
-print(result)
-
-theta_res = result.x
-theta_res = [4.000e-03, 1.473e-03, 9.188e-05, 1.000e-01]
+# print(result)
+#
+# theta_res = result.x
+theta_res = [ 4.417e-03, 1.493e-03, 9.165e-05, 1.000e-01]
 
 liquid = (1050.440, 3499, 1.633e-5, 2.675e-2)
 
 plt.figure(1)
+plt.xlabel('Volumetric flow, l/m')
+plt.ylabel('Thermal resistance, K/W')
 plt.plot(x, y, label='original')
 y_res = resistance(theta_res, x)
 plt.plot(x, y_res, label='optimised')
 pms_data = (980, 1632, 1e-5, 0.167)
-# y_pms = resistance(theta_res, x, pms_data)
-# plt.plot(x, y_pms, label='pms')
+y_pms = resistance(theta_res, x, pms_data)
+plt.plot(x, y_pms, label='pms')
 plt.legend()
 
 plt.figure(2)
+plt.xlabel('Volumetric flow, l/m')
+plt.ylabel('Pressure drop, bar')
 plt.plot(x_pressure, y_pressure, label='original')
 y_res_pressure = pressure_drop(theta_res, x_pressure)
 plt.plot(x_pressure, y_res_pressure, label='optimised')
-# y_pms_pressure = pressure_drop(theta_res, x_pressure, pms_data)
-# plt.plot(x_pressure, y_pms_pressure, label='pms')
+y_pms_pressure = pressure_drop(theta_res, x_pressure, pms_data)
+plt.plot(x_pressure, y_pms_pressure, label='pms')
 plt.legend()
 
 plt.show()
