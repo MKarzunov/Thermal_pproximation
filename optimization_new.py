@@ -28,31 +28,18 @@ y_pressure = np.array(
 #      0.759040316455696, 1.201657816455696])
 
 
-def resistance(theta, q, liquid=(1050.440, 3499, 1.464e-6, 4.108e-1)):
-    """
-    :param liquid:
-    :param theta: 0 - R_cond, 1 - Dh, 2 - cross-section area, 3 - a_wet
-    :param q:
-    :return:
-    """
-    eta = 0.49
-    ro = liquid[0]
-    cp = liquid[1]
-    nu = liquid[2]
-    _lambda = liquid[3]
-    r_cond = theta[0]
-    dh = theta[1]
-    cs_area = theta[2]
-    a_wet = theta[3]
+def get_nusselt_turbulent(fanning, reinolds, prandtl):
+    numerator = 0.079 * np.sqrt(fanning / 2) * reinolds * prandtl
+    denominator = (1 + prandtl ** (4 / 5)) ** (5 / 6)
+    return 4.8 + (numerator / denominator)
 
-    q = q / 6e+4
-    reinolds = (q * dh) / (cs_area * nu)
-    print(reinolds)
-    nusselt = 0.21 * pow(reinolds, 0.61)
-    r_conv = dh / (eta * nusselt * _lambda * a_wet)
-    r_cal = 1 / (2 * ro * q * cp)
-    # r_cal = 0
-    return r_cond + r_conv + r_cal
+
+def get_nusselt(reinolds, nusselt_turbulent):
+    nusselt_laminar = 3.66
+    first = np.exp((2200 - reinolds) / 365) / (nusselt_laminar ** 2)
+    second = 1 / (nusselt_turbulent ** 2)
+    pow10 = nusselt_laminar ** 10 + first + second
+    return pow10 ** 0.1
 
 
 def get_fanning(re: float) -> float:
@@ -62,37 +49,66 @@ def get_fanning(re: float) -> float:
     return 2 / two_by_f
 
 
-def pressure_drop(theta, q, liquid=(1050.440, 3499, 1.464e-6, 4.108e-1)):
-    ro = liquid[0]
-    nu = liquid[2]
-    _lambda = liquid[3]
+def resistance(theta, q, liquid_properties=(1050.440, 3499, 1.464e-6, 4.108e-1)):
+    """
+    :param liquid_properties:
+    :param theta: 0 - R_cond, 1 - Dh, 2 - cross-section area, 3 - a_wet, 4 - k_sum
+    :param q:
+    :return:
+    """
+    ro = liquid_properties[0]
+    cp = liquid_properties[1]
+    nu = liquid_properties[2]
+    _lambda = liquid_properties[3]
+    pr = (nu * ro * cp) / _lambda
+
+    r_cond = theta[0]
     dh = theta[1]
     cs_area = theta[2]
     a_wet = theta[3]
+    k_sum = theta[4]
+
+    q = q / 6e+4
+    reinolds = (q * dh) / (cs_area * nu)
+    print(reinolds)
+    fanning = get_fanning(reinolds)
+    nu_t = get_nusselt_turbulent(fanning, reinolds, pr)
+    nusselt = get_nusselt(reinolds, nu_t)
+    r_conv = dh / (nusselt * _lambda * a_wet)
+    return r_cond + r_conv
+
+
+def pressure_drop(theta, q, liquid_properties=(1050.440, 3499, 1.464e-6, 4.108e-1)):
+    ro = liquid_properties[0]
+    nu = liquid_properties[2]
+    _lambda = liquid_properties[3]
+    dh = theta[1]
+    cs_area = theta[2]
+    a_wet = theta[3]
+    k_sum = theta[4]
 
     q = q / 6e+4
     um = q / cs_area
     reinolds = (um * dh) / nu
     fanning = get_fanning(reinolds)
-    return (fanning * (a_wet / cs_area) * (0.5 * ro * um ** 2)) / 1e+5
+    return ((fanning * (a_wet / cs_area) + k_sum) * (0.5 * ro * um ** 2)) / 1e+5
 
 
 def optimized_fun(coefs):
-    resistance_array = (((resistance(coefs, x) - y) / y) * 1.075) ** 4
-    pressure_array = ((pressure_drop(coefs, x_pressure) - y_pressure) / y_pressure) ** 4
+    resistance_array = ((resistance(coefs, x) - y) / y) ** 2
+    pressure_array = ((pressure_drop(coefs, x_pressure) - y_pressure) / y_pressure) ** 2
     result_array = np.hstack((resistance_array, pressure_array))
     return np.sum(result_array)
 
 
 minimizer_kwargs = {'method': 'Nelder-Mead', 'options': {'maxfev': 1600, 'maxiter': 1600},
-                    'bounds': [(0, 6e-3), (0, 0.015), (0, 2e-4), (0, 1e-1)]}
-result = basinhopping(optimized_fun, [0.005, 3e-3, 3e-6, 3e-6], minimizer_kwargs=minimizer_kwargs)
+                    'bounds': [(0, 6e-3), (0, 0.015), (0, 2e-4), (0, 1e-1), (0, 20)]}
+result = basinhopping(optimized_fun, [0.005, 3e-3, 3e-6, 3e-6, 3], minimizer_kwargs=minimizer_kwargs)
 
 # result = minimize(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], method='Nelder-Mead', options={'maxfev': 1600, 'maxiter': 1600})
 print(result)
 
 theta_res = result.x
-theta_res = [4.000e-03, 1.473e-03, 9.188e-05, 1.000e-01]
 
 liquid = (1050.440, 3499, 1.633e-5, 2.675e-2)
 
