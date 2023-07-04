@@ -92,7 +92,7 @@ def optimized_fun(coefs):
 # print(result)
 #
 # theta_res = result.x
-theta_res = [ 4.417e-03, 1.493e-03, 9.165e-05, 1.000e-01]
+theta_res = [4.417e-03, 1.493e-03, 9.165e-05, 1.000e-01]
 
 liquid = (1050.440, 3499, 1.633e-5, 2.675e-2)
 
@@ -101,10 +101,10 @@ plt.xlabel('Volumetric flow, l/m')
 plt.ylabel('Thermal resistance, K/W')
 plt.plot(x, y, label='original')
 y_res = resistance(theta_res, x)
-plt.plot(x, y_res, label='optimised')
+plt.plot(x, y_res, label='optimized')
 pms_data = (980, 1632, 1e-5, 0.167)
 y_pms = resistance(theta_res, x, pms_data)
-plt.plot(x, y_pms, label='pms')
+plt.plot(x, y_pms, label='ПМС-10')
 plt.legend()
 
 plt.figure(2)
@@ -112,9 +112,9 @@ plt.xlabel('Volumetric flow, l/m')
 plt.ylabel('Pressure drop, bar')
 plt.plot(x_pressure, y_pressure, label='original')
 y_res_pressure = pressure_drop(theta_res, x_pressure)
-plt.plot(x_pressure, y_res_pressure, label='optimised')
+plt.plot(x_pressure, y_res_pressure, label='optimized')
 y_pms_pressure = pressure_drop(theta_res, x_pressure, pms_data)
-plt.plot(x_pressure, y_pms_pressure, label='pms')
+plt.plot(x_pressure, y_pms_pressure, label='ПМС-10')
 plt.legend()
 
 plt.show()
