@@ -105,6 +105,9 @@ if __name__ == '__main__':
     plt.plot(x, y_res, label='optimized')
     pms_data = (980, 1632, 1e-5, 0.167)
     y_pms = resistance(theta_res, x, pms_data)
+    print('Resistance')
+    print(x)
+    print(y_pms)
     plt.plot(x, y_pms, label='ПМС-10')
     plt.legend()
 
@@ -115,6 +118,9 @@ if __name__ == '__main__':
     y_res_pressure = pressure_drop(theta_res, x_pressure)
     plt.plot(x_pressure, y_res_pressure, label='optimized')
     y_pms_pressure = pressure_drop(theta_res, x_pressure, pms_data)
+    print('Pressure Drop')
+    print(x_pressure)
+    print(y_pms_pressure)
     plt.plot(x_pressure, y_pms_pressure, label='ПМС-10')
     plt.legend()
 
