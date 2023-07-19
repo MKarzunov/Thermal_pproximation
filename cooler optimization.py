@@ -2,9 +2,47 @@ import numpy as np
 from scipy.optimize import least_squares, minimize, basinhopping
 import matplotlib.pyplot as plt
 
+# ASA 0929 230/400V (50Hz) (1.5 kW)
+# Oil type ISO VG 46
 
-def solve_equation(oil_cp, oil_mass_flow, air_cp, air_mass_flow, f_rad, k_rad, t_oil_in, t_air_in):
-    # x = [power, t_oil_out, t_air_out, t_oil_av, t_air_av]
+# density, conductivity, kinematic viscosity, heat capacity
+iso_46_props = (860, 0.132, 46.6e-6, 1942.67)
+
+# theta = [f_rad, d_tube, eta, f_op, fin_length, l_tube]
+
+plot_vol_flow = np.array(
+    [49.99011794871795, 88.20600512820513, 153.49001025641027, 201.1771948717949, 243.64994871794875,
+     299.95204102564105, 364.2634358974359, 404.0979846153847, 443.93253333333337, 484.2228205128206,
+     524.5131076923077, 562.461276923077, 600.4094461538461])
+plot_p_spec = np.array(
+    [1.2171298474358976, 1.8340764333333335, 2.4372561730769235, 2.7157759974358977, 2.882851252564103,
+     3.1126270871794874, 3.275092664102565, 3.3658708833333337, 3.456649102564103, 3.5281774551282057,
+     3.5997057602564104, 3.657639411538462, 3.7155730628205137])
+
+pressure_vol_flow = np.array([0.0, 52.51037435897437, 103.76692820512821, 150.69810256410258, 202.85903076923077,
+                              262.5098923076923, 300.0774307692308, 345.50162564102567, 398.76475897435904,
+                              450.71934358974363,
+                              500.73258461538467, 554.7155538461539, 600.1548615384615])
+pressure_loss = np.array([0.0, 0.17028338461538464, 0.38161955897435906, 0.626422076923077, 0.9286652974358977,
+                          1.4629227743589746, 1.7999686974358977, 2.1968336358974363, 2.6523654102564107,
+                          3.108078938461539,
+                          3.5441338871794876, 4.008169676923077, 4.4051709589743595])
+
+
+# theta = [f_rad, d_tube, eta, f_op, fin_length, l_tube]
+
+
+def solve_equation(theta, oil_vol_flow, oil_props=iso_46_props, air_cp=1005, air_mass_flow=5.74, t_oil_in=40,
+                   t_air_in=20):
+    oil_density = oil_props[0]
+    oil_vol_flow = oil_vol_flow / 6e+4
+    oil_mass_flow = oil_density * oil_vol_flow
+    oil_cp = oil_props[3]
+    f_rad = theta[0]
+    air_area = 1031 * 1100 * 0.5 * 1e-6
+    air_density = 1.205
+    air_speed = air_mass_flow / (air_density * air_area)
+    k_rad = get_k(theta[1], theta[2], theta[3], theta[4], oil_mass_flow, air_speed, oil_props)
     eq1 = [1.0, oil_cp * oil_mass_flow, 0.0, 0.0, 0.0]
     an1 = oil_cp * oil_mass_flow * t_oil_in
     eq2 = [1.0, 0.0, -air_cp * air_mass_flow, 0.0, 0.0]
@@ -17,16 +55,13 @@ def solve_equation(oil_cp, oil_mass_flow, air_cp, air_mass_flow, f_rad, k_rad, t
     an5 = 0.5 * t_air_in
     coefficients = np.array([eq1, eq2, eq3, eq4, eq5])
     answers = np.array([an1, an2, an3, an4, an5])
-    return np.linalg.solve(coefficients, answers)
+    res = np.linalg.solve(coefficients, answers)
+    # res = [power, t_oil_out, t_air_out, t_oil_av, t_air_av]
+    p_spec = res[0] / (t_oil_in - t_air_in)
+    return p_spec / 1000
 
 
-print(solve_equation(4200, 0.1, 1000, 0.2, 2, 45, 40, 20))
-print(solve_equation(4200, 0.1, 1000, 0.2, 2, 100, 40, 20))
-print(solve_equation(4200, 0.1, 1000, 0.2, 2, 1000, 40, 20))
-print(solve_equation(4200, 0.1, 1000, 0.2, 2, 10000, 40, 20))
-
-
-def get_k(d_tube, eta, f_op, fin_length, oil_mass_flow, air_speed, oil_props):
+def get_k(d_tube, eta, f_op, fin_length, oil_mass_flow, air_speed, oil_props=iso_46_props):
     delta = 2e-3
     aluminum_conductivity = 230
     oil_density = oil_props[0]
@@ -56,7 +91,57 @@ def get_k(d_tube, eta, f_op, fin_length, oil_mass_flow, air_speed, oil_props):
     return 1 / (first + second + third)
 
 
+# theta = [f_rad, d_tube, eta, f_op, fin_length, l_tube]
+
+
+def get_fanning(re: float) -> float:
+    denominator = np.sqrt((8 / re) ** 10 + (re / 36500) ** 20)
+    second_in_sum = (2.21 * np.log(re / 7)) ** 10
+    two_by_f = (1 / denominator + second_in_sum) ** (1 / 5)
+    return 2 / two_by_f
+
+
+def pressure_drop(theta, q, oil_props=iso_46_props):
+    ro = oil_props[0]
+    _lambda = oil_props[1]
+    nu = oil_props[2]
+
+    dh = theta[1]
+    l_tube = theta[5]
+    cs_area = np.pi * (dh ** 2) / 4
+    a_wet = np.pi * dh * l_tube
+
+    q = q / 6e+4
+    um = q / cs_area
+    reinolds = (um * dh) / nu
+    fanning = get_fanning(reinolds)
+    return (fanning * (a_wet / cs_area) * (0.5 * ro * um ** 2)) / 1e+5
+
+
+def optimized_fun(coefs):
+    res = 0
+    for flow_perf, perf, flow_pres, pres in zip(plot_vol_flow, plot_p_spec, pressure_vol_flow, pressure_loss):
+        res += ((solve_equation(coefs, flow_perf) - perf) / perf) ** 4
+        # res += ((pressure_drop(coefs, flow_pres) - pres) / pres) ** 4
+    return res
+
+
+minimizer_kwargs = {'method': 'Nelder-Mead', 'options': {'maxfev': 1600, 'maxiter': 1600}}
+result = basinhopping(optimized_fun, (2, 0.01, 0.49, 1.3, 0.02, 2), minimizer_kwargs=minimizer_kwargs)
+
+# result = minimize(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], method='Nelder-Mead', options={'maxfev': 1600, 'maxiter': 1600})
+print(result)
+#
+theta_res = result.x
+
+# theta = [f_rad, d_tube, eta, f_op, fin_length, l_tube]
 print('-' * 20)
-k = get_k(0.01, 0.49, 1.33, 0.01, 0.1, 20, [1000, 0.58, 0.66e-6, 4200])
-print(k)
-print(solve_equation(4200, 0.1, 1000, 0.2, 2, k, 40, 20))
+
+plt.figure(1)
+plt.plot(plot_vol_flow, plot_p_spec, label='orig')
+optim_performance = [solve_equation(theta_res, flow) for flow in plot_vol_flow]
+plt.plot(plot_vol_flow, optim_performance, label='optim')
+plt.legend()
+# plt.figure(2)
+# plt.plot(pressure_vol_flow, pressure_loss)
+plt.show()

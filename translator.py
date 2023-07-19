@@ -1,7 +1,7 @@
-x_coef = 24 / 147
-y_coef = 0.02 / 89
+x_coef = 600 / 117
+y_coef = 4.4 / 78
 
-file = open('MDT XP Resistance.txt', 'r')
+file = open('Cooling pressure drop.txt', 'r')
 t = file.readlines()
 file.close()
 xs = t[1::4]
