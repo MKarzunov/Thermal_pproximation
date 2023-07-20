@@ -39,7 +39,7 @@ def solve_equation(theta, oil_vol_flow, oil_props=iso_46_props, air_cp=1005, air
     oil_mass_flow = oil_density * oil_vol_flow
     oil_cp = oil_props[3]
     f_rad = theta[0]
-    air_area = 1031 * 1100 * 0.5 * 1e-6
+    air_area = 1031 * 1100 * 0.02 * 1e-6
     air_density = 1.205
     air_speed = air_mass_flow / (air_density * air_area)
     k_rad = get_k(theta[1], theta[2], theta[3], theta[4], oil_mass_flow, air_speed, oil_props)
@@ -73,10 +73,10 @@ def get_k(d_tube, eta, f_op, fin_length, oil_mass_flow, air_speed, oil_props=iso
     oil_speed = oil_vol_flow / tube_area
     re_oil = oil_speed * d_tube / oil_kin_viscosity
     pr_oil = oil_kin_viscosity * oil_density * oil_cp / oil_conductivity
-    if re_oil <= 2000:
-        nu_oil = 3.66
-    else:
-        nu_oil = 0.023 * re_oil ** 0.8 * pr_oil ** 0.4
+    # if re_oil <= 2000:
+    #     nu_oil = 3.66
+    # else:
+    nu_oil = 0.023 * re_oil ** 0.8 * pr_oil ** 0.4
     alpha_oil = nu_oil * oil_conductivity / d_tube
 
     air_kin_viscosity = 15e-6
@@ -114,6 +114,7 @@ def pressure_drop(theta, q, oil_props=iso_46_props):
     q = q / 6e+4
     um = q / cs_area
     reinolds = (um * dh) / nu
+    print(reinolds)
     fanning = get_fanning(reinolds)
     return (fanning * (a_wet / cs_area) * (0.5 * ro * um ** 2)) / 1e+5
 
@@ -121,27 +122,37 @@ def pressure_drop(theta, q, oil_props=iso_46_props):
 def optimized_fun(coefs):
     res = 0
     for flow_perf, perf, flow_pres, pres in zip(plot_vol_flow, plot_p_spec, pressure_vol_flow, pressure_loss):
-        res += ((solve_equation(coefs, flow_perf) - perf) / perf) ** 4
-        # res += ((pressure_drop(coefs, flow_pres) - pres) / pres) ** 4
+        res += ((solve_equation(coefs, flow_perf) - perf)) ** 2
+        res += ((pressure_drop(coefs, flow_pres) - pres)) ** 2
     return res
 
 
-minimizer_kwargs = {'method': 'Nelder-Mead', 'options': {'maxfev': 1600, 'maxiter': 1600}}
-result = basinhopping(optimized_fun, (2, 0.01, 0.49, 1.3, 0.02, 2), minimizer_kwargs=minimizer_kwargs)
+theta_first = (2, 0.025, 0.80, 1.6, 0.001, 2)
+minimizer_kwargs = {'method': 'Nelder-Mead', 'bounds': ((0, 4), (2e-3, 5e-2), (0, 1), (1, 100), (1e-3, 1), (1, 20))}
+result = basinhopping(optimized_fun, theta_first, minimizer_kwargs=minimizer_kwargs)
 
-# result = minimize(optimized_fun, [0.001, 1e-3, 1e-6, 1e-6], method='Nelder-Mead', options={'maxfev': 1600, 'maxiter': 1600})
-print(result)
-#
+# result = minimize(optimized_fun, theta_first, method='Nelder-Mead', options={'maxfev': 10000, 'maxiter': 5000},
+#                   bounds=((0, 3), (2e-3, 5e-2), (0, 1), (1, 100), (5e-3, 1), (1, 20)))
+
+
+print('-' * 50)
+# theta_res = (16, 0.025, 0.80, 1.6, 0.2, 2)
 theta_res = result.x
-
+# theta_res[5] = 0.0005
+print(result)
 # theta = [f_rad, d_tube, eta, f_op, fin_length, l_tube]
-print('-' * 20)
+print(theta_res)
 
 plt.figure(1)
-plt.plot(plot_vol_flow, plot_p_spec, label='orig')
+plt.plot(plot_vol_flow, plot_p_spec, label='original')
 optim_performance = [solve_equation(theta_res, flow) for flow in plot_vol_flow]
-plt.plot(plot_vol_flow, optim_performance, label='optim')
+plt.plot(plot_vol_flow, optim_performance, label='optimized')
+plt.title('Performance')
 plt.legend()
-# plt.figure(2)
-# plt.plot(pressure_vol_flow, pressure_loss)
+plt.figure(2)
+plt.plot(pressure_vol_flow, pressure_loss, label='original')
+optim_pressure = pressure_drop(theta_res, pressure_vol_flow)
+plt.plot(pressure_vol_flow, optim_pressure, label='optimized')
+plt.title('Pressure drop')
+plt.legend()
 plt.show()
