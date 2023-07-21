@@ -127,32 +127,43 @@ def optimized_fun(coefs):
     return res
 
 
-theta_first = (2, 0.025, 0.80, 1.6, 0.001, 2)
-minimizer_kwargs = {'method': 'Nelder-Mead', 'bounds': ((0, 4), (2e-3, 5e-2), (0, 1), (1, 100), (1e-3, 1), (1, 20))}
-result = basinhopping(optimized_fun, theta_first, minimizer_kwargs=minimizer_kwargs)
+# theta_first = (2, 0.025, 0.80, 1.6, 0.001, 2)
+# minimizer_kwargs = {'method': 'Nelder-Mead', 'bounds': ((0, 4), (2e-3, 5e-2), (0, 1), (1, 100), (1e-3, 1), (1, 20))}
+# result = basinhopping(optimized_fun, theta_first, minimizer_kwargs=minimizer_kwargs)
 
 # result = minimize(optimized_fun, theta_first, method='Nelder-Mead', options={'maxfev': 10000, 'maxiter': 5000},
 #                   bounds=((0, 3), (2e-3, 5e-2), (0, 1), (1, 100), (5e-3, 1), (1, 20)))
 
 
 print('-' * 50)
-# theta_res = (16, 0.025, 0.80, 1.6, 0.2, 2)
-theta_res = result.x
+
+# theta_res = result.x
 # theta_res[5] = 0.0005
-print(result)
+# print(result)
 # theta = [f_rad, d_tube, eta, f_op, fin_length, l_tube]
-print(theta_res)
+# print(theta_res)
+
+# theta_res = (7.65479151e+00, 2.38977070e-02, 1.00000000e+00, 1.53385223e+00, 4.87663083e-03, 1.80184223e+00)
+theta_res = (11.72606468, 0.02389775, 0.93003779, 1.00129924, 0.02908544, 1.8018596)
+
+# density, conductivity, kinematic viscosity, heat capacity
+pms_data = (980, 0.167, 1e-5, 1632)
+# iso_46_props = (860, 0.132, 46.6e-6, 1942.67)
 
 plt.figure(1)
 plt.plot(plot_vol_flow, plot_p_spec, label='original')
 optim_performance = [solve_equation(theta_res, flow) for flow in plot_vol_flow]
 plt.plot(plot_vol_flow, optim_performance, label='optimized')
+pms_performance = [solve_equation(theta_res, flow, oil_props=pms_data) for flow in plot_vol_flow]
+plt.plot(plot_vol_flow, pms_performance, label='ПМС-10')
 plt.title('Performance')
 plt.legend()
 plt.figure(2)
 plt.plot(pressure_vol_flow, pressure_loss, label='original')
 optim_pressure = pressure_drop(theta_res, pressure_vol_flow)
 plt.plot(pressure_vol_flow, optim_pressure, label='optimized')
+pms_pressure = pressure_drop(theta_res, pressure_vol_flow, oil_props=pms_data)
+plt.plot(pressure_vol_flow, pms_pressure, label='ПМС-10')
 plt.title('Pressure drop')
 plt.legend()
 plt.show()
