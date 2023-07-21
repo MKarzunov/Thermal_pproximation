@@ -33,7 +33,7 @@ pressure_loss = np.array([0.0, 0.17028338461538464, 0.38161955897435906, 0.62642
 
 
 def solve_equation(theta, oil_vol_flow, oil_props=iso_46_props, air_cp=1005, air_mass_flow=5.74, t_oil_in=40,
-                   t_air_in=20):
+                   t_air_in=20, print_results=False):
     oil_density = oil_props[0]
     oil_vol_flow = oil_vol_flow / 6e+4
     oil_mass_flow = oil_density * oil_vol_flow
@@ -58,6 +58,9 @@ def solve_equation(theta, oil_vol_flow, oil_props=iso_46_props, air_cp=1005, air
     res = np.linalg.solve(coefficients, answers)
     # res = [power, t_oil_out, t_air_out, t_oil_av, t_air_av]
     p_spec = res[0] / (t_oil_in - t_air_in)
+    if print_results:
+        print(oil_vol_flow * 6e+4)
+        print(res)
     return p_spec / 1000
 
 
@@ -114,8 +117,10 @@ def pressure_drop(theta, q, oil_props=iso_46_props):
     q = q / 6e+4
     um = q / cs_area
     reinolds = (um * dh) / nu
-    print(reinolds)
     fanning = get_fanning(reinolds)
+    print('Pressure drop')
+    print(q * 6e+4)
+    print((fanning * (a_wet / cs_area) * (0.5 * ro * um ** 2)) / 1e+5)
     return (fanning * (a_wet / cs_area) * (0.5 * ro * um ** 2)) / 1e+5
 
 
@@ -143,8 +148,8 @@ print('-' * 50)
 # theta = [f_rad, d_tube, eta, f_op, fin_length, l_tube]
 # print(theta_res)
 
-# theta_res = (7.65479151e+00, 2.38977070e-02, 1.00000000e+00, 1.53385223e+00, 4.87663083e-03, 1.80184223e+00)
-theta_res = (11.72606468, 0.02389775, 0.93003779, 1.00129924, 0.02908544, 1.8018596)
+theta_res = (7.65479151e+00, 2.38977070e-02, 1.00000000e+00, 1.53385223e+00, 4.87663083e-03, 1.80184223e+00)
+# theta_res = (11.72606468, 0.02389775, 0.93003779, 1.00129924, 0.02908544, 1.8018596)
 
 # density, conductivity, kinematic viscosity, heat capacity
 pms_data = (980, 0.167, 1e-5, 1632)
@@ -154,7 +159,7 @@ plt.figure(1)
 plt.plot(plot_vol_flow, plot_p_spec, label='original')
 optim_performance = [solve_equation(theta_res, flow) for flow in plot_vol_flow]
 plt.plot(plot_vol_flow, optim_performance, label='optimized')
-pms_performance = [solve_equation(theta_res, flow, oil_props=pms_data) for flow in plot_vol_flow]
+pms_performance = [solve_equation(theta_res, flow, oil_props=pms_data, print_results=True) for flow in plot_vol_flow]
 plt.plot(plot_vol_flow, pms_performance, label='ПМС-10')
 plt.title('Performance')
 plt.legend()
@@ -167,3 +172,5 @@ plt.plot(pressure_vol_flow, pms_pressure, label='ПМС-10')
 plt.title('Pressure drop')
 plt.legend()
 plt.show()
+
+n = solve_equation(theta_res, 201.1771948717949, oil_props=pms_data, print_results=True)
